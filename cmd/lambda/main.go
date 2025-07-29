@@ -1,12 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"random-http-cat/internal/cat"
 	"random-http-cat/internal/mdn"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+
 	//"random-http-cat/pkg/randomizer"
+	"random-http-cat/internal/dynamo"
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 func main() {
@@ -16,6 +24,38 @@ func main() {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("Extração feita. Número de elementos: %v\n", len(mapCode))
+	}
+	fmt.Println("Printando AWS")
+	if _, err := dynamo.CreateHttpTable(); err != nil {
+		log.Println(err)
+	}
+	dynamo.ListTable()
+	var putRequestSlice []*dynamodb.WriteRequest
+	count := 0
+	session := dynamo.GetSession()
+	for key, value := range mapCode {
+		tempMap := map[int]string{
+			key: value,
+		}
+		kbs, err := evaluateKBs(tempMap)
+		switch {
+		case err != nil:
+			log.Println(err)
+		case kbs > 400:
+			log.Println("Tamanho grande demais para inserir no DB:", kbs)
+		default:
+			dynamo.AddPutRequestSlice(&putRequestSlice, key, value)
+			count++
+		}
+		if count%25 == 0 {
+			fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
+			dynamo.BatchWriteItem(session, &putRequestSlice, "httpDescription")
+			putRequestSlice = nil
+		}
+	}
+	if len(putRequestSlice) > 0 {
+		fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
+		dynamo.BatchWriteItem(session, &putRequestSlice, "httpDescription")
 	}
 	fmt.Println(time.Since(timeIni))
 }
@@ -56,9 +96,27 @@ func worker(_ int, jobs <-chan int, results chan<- map[int]string, wg *sync.Wait
 	defer wg.Done()
 	for job := range jobs {
 		desc, err := mdn.GetHttp(job)
-		if err != nil {
-		} else {
+		switch {
+		case err != nil:
+			log.Fatalf("[CRITICAL] - Erro ao extrair %v", err)
+		case desc[job] == "":
+			log.Fatalf("[CRITICAL]- Empty: Extração do code %v veio vazia.\n", job)
+		default:
 			results <- desc
 		}
 	}
+}
+
+func evaluateKBs(data map[int]string) (float64, error) {
+	avMap, err := attributevalue.MarshalMap(data)
+	if err != nil {
+		return 0, err
+	}
+
+	jsonBytes, err := json.Marshal(avMap)
+	if err != nil {
+		return 0, err
+	}
+
+	return float64(len(jsonBytes)), nil
 }
