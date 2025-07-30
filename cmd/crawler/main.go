@@ -14,35 +14,42 @@ import (
 	//"random-http-cat/pkg/randomizer"
 	"random-http-cat/internal/dynamo"
 
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 const TableName string = "httpDescription"
 
-func main() {
-	timeIni := time.Now()
+func lambdaHandler(event json.RawMessage) {
+	// Cria o Map com o resultado da raspagem
 	mapCode, err := populateMapScrap()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	} else {
-		fmt.Printf("Extração feita. Número de elementos: %v\n", len(mapCode))
+		log.Printf("Raspagem feita. Número de Códigos HTTP: %v\n", len(mapCode))
 	}
 
+	// Valida as tabelas do DynamoDB e cria a tabela, caso necessário
 	session := dynamo.GetSession()
 	tablemap := dynamo.ListTable(session)
-	if tableNameAWS := tablemap[TableName]; tableNameAWS != TableName {
+
+	if TableNameAWS := tablemap[TableName]; TableNameAWS != TableName {
 		if _, err := dynamo.CreateHttpTable(session, TableName); err != nil {
 			log.Println(err)
 		}
 	}
 
+	// Cria slice para Insert no DynamoDB
 	var putRequestSlice []*dynamodb.WriteRequest
-	count := 0
+
 	for key, value := range mapCode {
+
+		// Cria um Map Temporário com [key] = value
 		tempMap := map[int]string{
 			key: value,
 		}
 		kbs, err := evaluateKBs(tempMap)
+
 		switch {
 		case err != nil:
 			log.Println(err)
@@ -50,18 +57,22 @@ func main() {
 			log.Println("Tamanho grande demais para inserir no DB:", kbs)
 		default:
 			dynamo.AddPutRequestSlice(&putRequestSlice, key, value)
-			count++
 		}
-		if count%25 == 0 {
-			fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
+		if len(putRequestSlice)%25 == 0 {
 			dynamo.BatchWriteItem(session, &putRequestSlice, TableName)
+			log.Println("Número de itens a serem inseridos", len(putRequestSlice))
 			putRequestSlice = nil
 		}
 	}
 	if len(putRequestSlice) > 0 {
-		fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
 		dynamo.BatchWriteItem(session, &putRequestSlice, TableName)
+		log.Println("Número de itens a serem inseridos", len(putRequestSlice))
 	}
+}
+
+func main() {
+	timeIni := time.Now()
+	lambda.Start(lambdaHandler)
 	fmt.Println(time.Since(timeIni))
 }
 
