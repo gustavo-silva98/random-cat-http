@@ -18,7 +18,7 @@ func GetSession() *session.Session {
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
 			SharedConfigState: session.SharedConfigEnable,
 		}))
-		fmt.Println("Sessão Cloud")
+		fmt.Println("Iniciando Sessão Cloud")
 		return sess
 	} else {
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -27,26 +27,18 @@ func GetSession() *session.Session {
 				Endpoint: aws.String("http://localhost:8000"),
 			},
 		}))
-		fmt.Println("Sessão local")
+		fmt.Println("Iniciando Sessão local")
 		return sess
 	}
 
 }
 
-func ListTable() {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Region:   aws.String("us-east-1"),
-			Endpoint: aws.String("http://localhost:8000"),
-		},
-	}))
-
-	svc := dynamodb.New(sess)
+func ListTable(session *session.Session) map[string]string {
+	svc := dynamodb.New(session)
 
 	// create the input configuration instance
 	input := &dynamodb.ListTablesInput{}
-
-	fmt.Printf("Tables:\n")
+	var tableNameMap = make(map[string]string)
 
 	for {
 		// Get the list of tables
@@ -64,11 +56,11 @@ func ListTable() {
 				// Message from an error.
 				fmt.Println(err.Error())
 			}
-			return
+			return tableNameMap
 		}
 
 		for _, n := range result.TableNames {
-			fmt.Println(*n)
+			tableNameMap[*n] = *n
 		}
 
 		// assign the last read tablename as the start for our next call to the ListTables function
@@ -80,7 +72,7 @@ func ListTable() {
 			break
 		}
 	}
-
+	return tableNameMap
 }
 
 func CreateTable() {
@@ -137,13 +129,10 @@ func CreateTable() {
 
 }
 
-func CreateHttpTable() (bool, error) {
-
-	session := GetSession()
+func CreateHttpTable(session *session.Session, tablename string) (bool, error) {
 
 	// Create DynamoDB client
 	svc := dynamodb.New(session)
-	tablename := "httpDescription"
 
 	input := &dynamodb.CreateTableInput{
 		AttributeDefinitions: []*dynamodb.AttributeDefinition{

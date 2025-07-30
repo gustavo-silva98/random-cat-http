@@ -17,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
+const TableName string = "httpDescription"
+
 func main() {
 	timeIni := time.Now()
 	mapCode, err := populateMapScrap()
@@ -25,14 +27,17 @@ func main() {
 	} else {
 		fmt.Printf("Extração feita. Número de elementos: %v\n", len(mapCode))
 	}
-	fmt.Println("Printando AWS")
-	if _, err := dynamo.CreateHttpTable(); err != nil {
-		log.Println(err)
+
+	session := dynamo.GetSession()
+	tablemap := dynamo.ListTable(session)
+	if tableNameAWS := tablemap[TableName]; tableNameAWS != TableName {
+		if _, err := dynamo.CreateHttpTable(session, TableName); err != nil {
+			log.Println(err)
+		}
 	}
-	dynamo.ListTable()
+
 	var putRequestSlice []*dynamodb.WriteRequest
 	count := 0
-	session := dynamo.GetSession()
 	for key, value := range mapCode {
 		tempMap := map[int]string{
 			key: value,
@@ -49,13 +54,13 @@ func main() {
 		}
 		if count%25 == 0 {
 			fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
-			dynamo.BatchWriteItem(session, &putRequestSlice, "httpDescription")
+			dynamo.BatchWriteItem(session, &putRequestSlice, TableName)
 			putRequestSlice = nil
 		}
 	}
 	if len(putRequestSlice) > 0 {
 		fmt.Println("Número de itens a serem inseridos", len(putRequestSlice))
-		dynamo.BatchWriteItem(session, &putRequestSlice, "httpDescription")
+		dynamo.BatchWriteItem(session, &putRequestSlice, TableName)
 	}
 	fmt.Println(time.Since(timeIni))
 }
