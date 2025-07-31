@@ -4,13 +4,14 @@ go 1.24.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/andybalholm/brotli v1.2.0
+	github.com/aws/aws-lambda-go v1.49.0
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.0
 	github.com/gocolly/colly/v2 v2.2.0
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.4 // indirect
 	github.com/antchfx/xmlquery v1.4.4 // indirect

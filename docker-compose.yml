@@ -10,6 +10,8 @@ services:
     volumes:
       - "./docker/dynamodb:/home/dynamodblocal/data"
     working_dir: /home/dynamodblocal
+    networks:
+      - local-network
 
   dynamodb-admin:
     image: aaronshaf/dynamodb-admin
@@ -20,3 +22,9 @@ services:
     
     depends_on:
       - dynamodb-local
+    networks:
+      - local-network
+
+networks:
+  local-network:
+    driver: bridge

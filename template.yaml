@@ -1,0 +1,22 @@
+Transform:
+  - AWS::LanguageExtensions
+  - AWS::Serverless-2016-10-31
+
+
+Resources:
+  HttpCatScraperFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: HttpCatScraperFunction
+      Handler: ./cmd/crawler/main
+      Runtime: go1.x
+      Timeout: 120
+
+  HttpCatTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: "httpCode"
+          KeyType: "N"
+
+  

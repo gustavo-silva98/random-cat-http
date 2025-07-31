@@ -24,7 +24,7 @@ func GetSession() *session.Session {
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
 			Config: aws.Config{
 				Region:   aws.String("us-east-1"),
-				Endpoint: aws.String("http://localhost:8000"),
+				Endpoint: aws.String("http://dynamodb-local:8000"),
 			},
 		}))
 		fmt.Println("Iniciando Sessão local")
@@ -191,5 +191,5 @@ func BatchWriteItem(sess *session.Session, putRequestSlice *[]*dynamodb.WriteReq
 	if err != nil {
 		log.Println("Erro ao executar Insert Massivo ", err)
 	}
-	log.Println("Itens inseridos com sucesso")
+	log.Printf("%v Itens inseridos com sucesso", len(*putRequestSlice))
 }
